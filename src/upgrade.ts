@@ -1,77 +1,11 @@
 import { VERSION, PACKAGE_NAME } from "./version";
 
+const REPO = "shkumbinhasani/opendebreif";
+
 interface UpdateInfo {
   currentVersion: string;
   latestVersion: string;
   updateAvailable: boolean;
-  packageManager: "npm" | "bun" | "pnpm" | "yarn" | "unknown";
-}
-
-/**
- * Detect which package manager was used to install the package
- */
-export function detectPackageManager(): UpdateInfo["packageManager"] {
-  const execPath = process.env.npm_execpath || "";
-  const userAgent = process.env.npm_config_user_agent || "";
-
-  if (userAgent.includes("bun") || execPath.includes("bun")) {
-    return "bun";
-  }
-  if (userAgent.includes("pnpm") || execPath.includes("pnpm")) {
-    return "pnpm";
-  }
-  if (userAgent.includes("yarn") || execPath.includes("yarn")) {
-    return "yarn";
-  }
-  if (userAgent.includes("npm") || execPath.includes("npm")) {
-    return "npm";
-  }
-
-  return "unknown";
-}
-
-/**
- * Get the upgrade command for the detected package manager
- */
-export function getUpgradeCommand(pm: UpdateInfo["packageManager"]): string {
-  switch (pm) {
-    case "bun":
-      return `bun add -g ${PACKAGE_NAME}@latest`;
-    case "pnpm":
-      return `pnpm add -g ${PACKAGE_NAME}@latest`;
-    case "yarn":
-      return `yarn global add ${PACKAGE_NAME}@latest`;
-    case "npm":
-    default:
-      return `npm install -g ${PACKAGE_NAME}@latest`;
-  }
-}
-
-/**
- * Fetch the latest version from npm registry
- */
-export async function fetchLatestVersion(): Promise<string | null> {
-  try {
-    const response = await fetch(
-      `https://registry.npmjs.org/${PACKAGE_NAME}/latest`,
-      {
-        headers: {
-          Accept: "application/json",
-        },
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      }
-    );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = (await response.json()) as { version: string };
-    return data.version;
-  } catch {
-    // Network error or timeout - silently fail
-    return null;
-  }
 }
 
 /**
@@ -94,11 +28,38 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
+ * Fetch the latest version from GitHub releases
+ */
+export async function fetchLatestVersion(): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${REPO}/releases/latest`,
+      {
+        headers: {
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": PACKAGE_NAME,
+        },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as { tag_name: string };
+    // Remove 'v' prefix if present
+    return data.tag_name.replace(/^v/, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Check if an update is available
  */
 export async function checkForUpdate(): Promise<UpdateInfo> {
   const latestVersion = await fetchLatestVersion();
-  const packageManager = detectPackageManager();
 
   return {
     currentVersion: VERSION,
@@ -106,12 +67,18 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
     updateAvailable: latestVersion
       ? compareVersions(VERSION, latestVersion) < 0
       : false,
-    packageManager,
   };
 }
 
 /**
- * Perform the upgrade using exec
+ * Get the upgrade command
+ */
+export function getUpgradeCommand(): string {
+  return `curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install | bash`;
+}
+
+/**
+ * Perform the upgrade by running the install script
  */
 export async function performUpgrade(): Promise<{
   success: boolean;
@@ -121,14 +88,15 @@ export async function performUpgrade(): Promise<{
   const { promisify } = await import("util");
   const execAsync = promisify(exec);
 
-  const pm = detectPackageManager();
-  const command = getUpgradeCommand(pm);
+  const command = getUpgradeCommand();
 
-  console.log(`Upgrading ${PACKAGE_NAME} using ${pm}...`);
+  console.log(`Upgrading ${PACKAGE_NAME}...`);
   console.log(`Running: ${command}\n`);
 
   try {
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execAsync(command, {
+      shell: "/bin/bash",
+    });
     if (stdout) console.log(stdout);
     if (stderr) console.error(stderr);
 
@@ -137,7 +105,7 @@ export async function performUpgrade(): Promise<{
       message: `Successfully upgraded ${PACKAGE_NAME}!`,
     };
   } catch (err) {
-    const error = err as Error & { code?: number };
+    const error = err as Error;
     return {
       success: false,
       message: `Upgrade failed: ${error.message}\nTry running manually:\n  ${command}`,

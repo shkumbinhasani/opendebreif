@@ -100,7 +100,7 @@ async function main() {
         console.log(
           `\nUpdate available: ${updateInfo.currentVersion} -> ${updateInfo.latestVersion}`
         );
-        console.log(`Run: ${getUpgradeCommand(updateInfo.packageManager)}`);
+        console.log(`Run: ${getUpgradeCommand()}`);
       }
       process.exit(0);
       break;
@@ -141,9 +141,7 @@ async function startApp(checkUpdates: boolean) {
         // Store update info for the app to display
         process.env.OPENDEBREIF_UPDATE_AVAILABLE = "1";
         process.env.OPENDEBREIF_LATEST_VERSION = info.latestVersion;
-        process.env.OPENDEBREIF_UPGRADE_COMMAND = getUpgradeCommand(
-          info.packageManager
-        );
+        process.env.OPENDEBREIF_UPGRADE_COMMAND = getUpgradeCommand();
       }
     });
   }
