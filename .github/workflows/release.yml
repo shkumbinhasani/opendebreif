@@ -47,41 +47,11 @@ jobs:
           cd dist/darwin-arm64
           zip -r ../opendebreif-v${{ env.VERSION }}-darwin-arm64.zip .
 
-      - name: Prepare npm package
-        run: |
-          mkdir -p npm/opendebreif-darwin-arm64/bin
-          cp dist/darwin-arm64/opendebreif npm/opendebreif-darwin-arm64/bin/
-          cp dist/darwin-arm64/recorder npm/opendebreif-darwin-arm64/bin/
-          
-          cd npm/opendebreif-darwin-arm64
-          cat > package.json << EOF
-          {
-            "name": "opendebreif-darwin-arm64",
-            "version": "${{ env.VERSION }}",
-            "description": "opendebreif binary for macOS (Apple Silicon, runs on Intel via Rosetta)",
-            "author": "Shkumbin Hasani",
-            "license": "MIT",
-            "repository": {
-              "type": "git",
-              "url": "https://github.com/shkumbinhasani/opendebreif.git"
-            },
-            "os": ["darwin"],
-            "cpu": ["arm64"],
-            "files": ["bin"]
-          }
-          EOF
-
-      - name: Upload GitHub Release artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-darwin-arm64
           path: dist/opendebreif-v${{ env.VERSION }}-darwin-arm64.zip
-
-      - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-darwin-arm64
-          path: npm/opendebreif-darwin-arm64
 
   release:
     needs: [build-macos]
@@ -89,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download release artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: release-*
@@ -125,20 +95,19 @@ jobs:
       - name: Get version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
-      - name: Download npm artifacts
+      - name: Download binary
         uses: actions/download-artifact@v4
         with:
-          pattern: npm-*
-          path: npm-packages
+          name: release-darwin-arm64
+          path: npm-pkg
 
-      - name: Publish darwin-arm64
+      - name: Prepare npm package
         run: |
-          cd npm-packages/npm-darwin-arm64
-          npm publish --access public --provenance
-
-      - name: Publish main package
-        run: |
-          cd npm/opendebreif
+          mkdir -p npm-pkg/bin
+          cd npm-pkg
+          unzip opendebreif-v${{ env.VERSION }}-darwin-arm64.zip -d bin/
+          rm opendebreif-v${{ env.VERSION }}-darwin-arm64.zip
+          
           cat > package.json << EOF
           {
             "name": "opendebreif",
@@ -156,10 +125,13 @@ jobs:
               "opendebreif": "bin/opendebreif"
             },
             "files": ["bin"],
-            "os": ["darwin"],
-            "optionalDependencies": {
-              "opendebreif-darwin-arm64": "${{ env.VERSION }}"
-            }
+            "os": ["darwin"]
           }
           EOF
+          
+          chmod +x bin/opendebreif bin/recorder
+
+      - name: Publish to npm
+        run: |
+          cd npm-pkg
           npm publish --access public --provenance
