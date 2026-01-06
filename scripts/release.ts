@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 /**
- * Creates a git tag for the current version and pushes it.
- * This triggers the release workflow which builds and publishes the binary.
+ * Creates a git tag and GitHub release for the current version.
+ * The changesets workflow will then build and upload the binary.
  */
 
 import { readFileSync } from "fs";
@@ -34,8 +34,13 @@ try {
   execSync(`git tag ${tag}`, { stdio: "inherit", cwd: ROOT });
   execSync(`git push origin ${tag}`, { stdio: "inherit", cwd: ROOT });
 
-  console.log(`Successfully created and pushed tag ${tag}`);
-  console.log(`Release workflow will now build and publish the binary.`);
+  // Create GitHub release
+  execSync(
+    `gh release create ${tag} --title "${tag}" --generate-notes`,
+    { stdio: "inherit", cwd: ROOT }
+  );
+
+  console.log(`Successfully created release ${tag}`);
 } catch (error) {
   console.error("Failed to create release:", error);
   process.exit(1);
