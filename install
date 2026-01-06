@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP=opendebreif
+REPO="shkumbinhasani/opendebreif"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+DIM='\033[0;2m'
+NC='\033[0m'
+
+usage() {
+    cat <<EOF
+opendebreif Installer
+
+Usage: install [options]
+
+Options:
+    -h, --help              Display this help message
+    -v, --version <version> Install a specific version (e.g., 0.1.3)
+
+Examples:
+    curl -fsSL https://raw.githubusercontent.com/$REPO/main/install | bash
+    curl -fsSL https://raw.githubusercontent.com/$REPO/main/install | bash -s -- --version 0.1.3
+EOF
+}
+
+requested_version=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            if [[ -n "${2:-}" ]]; then
+                requested_version="$2"
+                shift 2
+            else
+                echo -e "${RED}Error: --version requires a version argument${NC}"
+                exit 1
+            fi
+            ;;
+        *)
+            echo -e "${YELLOW}Warning: Unknown option '$1'${NC}" >&2
+            shift
+            ;;
+    esac
+done
+
+# Detect OS
+raw_os=$(uname -s)
+case "$raw_os" in
+    Darwin*) os="darwin" ;;
+    Linux*) os="linux" ;;
+    *)
+        echo -e "${RED}Unsupported OS: $raw_os${NC}"
+        echo -e "${DIM}opendebreif currently only supports macOS and Linux${NC}"
+        exit 1
+        ;;
+esac
+
+# Detect architecture
+arch=$(uname -m)
+case "$arch" in
+    aarch64|arm64) arch="arm64" ;;
+    x86_64|amd64) arch="x64" ;;
+    *)
+        echo -e "${RED}Unsupported architecture: $arch${NC}"
+        exit 1
+        ;;
+esac
+
+# Check for Rosetta on macOS
+if [ "$os" = "darwin" ] && [ "$arch" = "x64" ]; then
+    rosetta_flag=$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)
+    if [ "$rosetta_flag" = "1" ]; then
+        arch="arm64"
+    fi
+fi
+
+# macOS only for now (Swift recorder)
+if [ "$os" != "darwin" ]; then
+    echo -e "${RED}opendebreif currently only supports macOS${NC}"
+    echo -e "${DIM}Linux support coming soon!${NC}"
+    exit 1
+fi
+
+combo="$os-$arch"
+echo -e "${BLUE}Detected platform:${NC} $combo"
+
+# Determine archive extension
+if [ "$os" = "linux" ]; then
+    archive_ext=".tar.gz"
+else
+    archive_ext=".zip"
+fi
+
+# Construct download URL
+if [ -n "$requested_version" ]; then
+    version="$requested_version"
+    url="https://github.com/$REPO/releases/download/v${version}/${APP}-v${version}-${combo}${archive_ext}"
+    
+    # Verify release exists
+    http_status=$(curl -sI -o /dev/null -w "%{http_code}" "https://github.com/$REPO/releases/tag/v${version}")
+    if [ "$http_status" = "404" ]; then
+        echo -e "${RED}Version v${version} not found${NC}"
+        echo -e "${DIM}Available releases: https://github.com/$REPO/releases${NC}"
+        exit 1
+    fi
+else
+    # Get latest version
+    echo -e "${DIM}Fetching latest version...${NC}"
+    version=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+    
+    if [ -z "$version" ]; then
+        echo -e "${RED}Failed to fetch latest version${NC}"
+        echo -e "${DIM}Check https://github.com/$REPO/releases${NC}"
+        exit 1
+    fi
+    
+    url="https://github.com/$REPO/releases/latest/download/${APP}-v${version}-${combo}${archive_ext}"
+fi
+
+echo -e "${BLUE}Installing:${NC} $APP v$version"
+
+# Create temp directory
+tmp_dir=$(mktemp -d)
+trap "rm -rf $tmp_dir" EXIT
+
+filename="${APP}-v${version}-${combo}${archive_ext}"
+
+# Download
+echo -e "${DIM}Downloading from $url${NC}"
+if ! curl -fsSL -o "$tmp_dir/$filename" "$url"; then
+    echo -e "${RED}Download failed${NC}"
+    echo -e "${DIM}URL: $url${NC}"
+    exit 1
+fi
+
+# Extract
+echo -e "${DIM}Extracting...${NC}"
+if [ "$os" = "linux" ]; then
+    tar -xzf "$tmp_dir/$filename" -C "$tmp_dir"
+else
+    unzip -q "$tmp_dir/$filename" -d "$tmp_dir"
+fi
+
+# Install location
+install_dir="$HOME/.local/bin"
+mkdir -p "$install_dir"
+
+# Copy files
+echo -e "${DIM}Installing to $install_dir${NC}"
+cp "$tmp_dir/$APP" "$install_dir/"
+chmod +x "$install_dir/$APP"
+
+# Copy Swift recorder if present (macOS)
+if [ -f "$tmp_dir/recorder" ]; then
+    cp "$tmp_dir/recorder" "$install_dir/${APP}-recorder"
+    chmod +x "$install_dir/${APP}-recorder"
+fi
+
+# Check PATH
+if [[ ":$PATH:" != *":$install_dir:"* ]]; then
+    echo ""
+    echo -e "${YELLOW}Add this to your shell config (.zshrc, .bashrc, etc.):${NC}"
+    echo ""
+    echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo ""
+    
+    # Offer to add automatically
+    shell_config=""
+    if [ -n "${ZSH_VERSION:-}" ] || [ -f "$HOME/.zshrc" ]; then
+        shell_config="$HOME/.zshrc"
+    elif [ -n "${BASH_VERSION:-}" ] || [ -f "$HOME/.bashrc" ]; then
+        shell_config="$HOME/.bashrc"
+    fi
+    
+    if [ -n "$shell_config" ]; then
+        read -p "Add to $shell_config automatically? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "" >> "$shell_config"
+            echo "# opendebreif" >> "$shell_config"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$shell_config"
+            echo -e "${GREEN}Added to $shell_config${NC}"
+            echo -e "${DIM}Run: source $shell_config${NC}"
+        fi
+    fi
+fi
+
+echo ""
+echo -e "${GREEN}Successfully installed $APP v$version${NC}"
+echo ""
+echo -e "Run ${BLUE}$APP${NC} to start"

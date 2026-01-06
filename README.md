@@ -4,7 +4,7 @@ Record any meeting. Transcribe it. Know who said what.
 
 ![macOS](https://img.shields.io/badge/macOS-12.3+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![npm](https://img.shields.io/npm/v/opendebreif)
+![GitHub Release](https://img.shields.io/github/v/release/shkumbinhasani/opendebreif)
 
 ## Features
 
@@ -35,26 +35,24 @@ Record any meeting. Transcribe it. Know who said what.
  ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## Requirements
-
-- **macOS 12.3+** (Monterey or later) - Required for ScreenCaptureKit
-- **Bun** or **Node.js** - For running the application
-- **Xcode Command Line Tools** - For compiling the native Swift recorder
-- **FFmpeg** (optional) - Required only for "both" recording mode (mic + system)
-
 ## Installation
 
-### Using npm
+```bash
+curl -fsSL https://raw.githubusercontent.com/shkumbinhasani/opendebreif/main/install | bash
+```
+
+Or with npm:
 
 ```bash
 npm install -g opendebreif
 ```
 
-### Using Bun
+One binary. No dependencies.
 
-```bash
-bun add -g opendebreif
-```
+### Requirements
+
+- **macOS 12.3+** (Monterey or later)
+- **FFmpeg** (optional) - Only needed for recording mic + system audio together
 
 ### From source
 
@@ -62,7 +60,8 @@ bun add -g opendebreif
 git clone https://github.com/shkumbinhasani/opendebreif.git
 cd opendebreif
 bun install
-bun run build
+bun run build:current
+./dist/darwin-arm64/opendebreif
 ```
 
 ## Usage

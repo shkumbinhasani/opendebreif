@@ -1,48 +1,21 @@
 {
   "name": "opendebreif",
   "version": "0.1.3",
-  "description": "A TUI application for recording and transcribing meetings on macOS with mic and system audio capture",
+  "private": true,
+  "description": "Record any meeting. Transcribe it. Know who said what.",
   "author": "Shkumbin Hasani",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/shkumbinhasani/opendebreif.git"
   },
-  "keywords": [
-    "meeting",
-    "transcription",
-    "recording",
-    "audio",
-    "macos",
-    "tui",
-    "cli",
-    "whisper",
-    "elevenlabs",
-    "openai"
-  ],
   "type": "module",
-  "bin": {
-    "opendebreif": "./dist/cli.js"
-  },
-  "main": "./dist/index.js",
-  "files": [
-    "dist",
-    "native/recorder.swift",
-    "README.md"
-  ],
-  "engines": {
-    "bun": ">=1.0.0"
-  },
-  "os": [
-    "darwin"
-  ],
   "scripts": {
     "start": "bun run src/app.ts",
     "dev": "bun --hot run src/app.ts",
+    "build": "bun run scripts/build-binary.ts",
+    "build:current": "bun run scripts/build-binary.ts --current",
     "build:native": "cd native && swiftc -O -o recorder recorder.swift",
-    "build": "bun run scripts/build.ts",
-    "prepublishOnly": "bun run build",
-    "postinstall": "node --experimental-modules scripts/postinstall.js || true",
     "test": "bun test"
   },
   "devDependencies": {
