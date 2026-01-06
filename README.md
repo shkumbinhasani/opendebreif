@@ -1,6 +1,6 @@
 # opendebreif
 
-A beautiful Terminal User Interface (TUI) application for recording and transcribing meetings on macOS. Captures both microphone audio and system audio without requiring any additional audio routing software.
+Record any meeting. Transcribe it. Know who said what.
 
 ![macOS](https://img.shields.io/badge/macOS-12.3+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -8,13 +8,11 @@ A beautiful Terminal User Interface (TUI) application for recording and transcri
 
 ## Features
 
-- **System Audio Capture** - Record system audio directly using ScreenCaptureKit (no BlackHole or Soundflower needed)
-- **Microphone Recording** - Capture from any connected microphone
-- **Dual Recording** - Record both mic and system audio simultaneously
-- **AI Transcription** - Transcribe recordings using OpenAI Whisper or ElevenLabs Scribe
-- **Speaker Diarization** - Identify different speakers in your meetings (via ElevenLabs Scribe)
-- **AI Summarization** - Generate meeting summaries with key points and action items
-- **Beautiful TUI** - Modern terminal interface with keyboard navigation
+- **Record Everything** - Mic, system audio, or both. No extra software needed.
+- **AI Transcription** - Powered by OpenAI Whisper or ElevenLabs Scribe
+- **Speaker Detection** - Know who said what in your meetings
+- **Smart Summaries** - Key points and action items, automatically
+- **Works in Your Terminal** - A beautiful TUI, keyboard-driven
 
 ```
  ╭──────────────────────────────────────────────────╮ ╭─────────────────────────╮
